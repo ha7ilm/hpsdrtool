@@ -2,29 +2,9 @@
 from socket import *
 import sys, time, signal, struct
 
-try: rxip=sys.argv[1]
-except:
-    print sys.argv[0]+" <hpsdr_metis_ip>"
-    sys.exit(1)
-rxipparts=rxip.split(".")
-bcastip=".".join(rxipparts[0:3]+["255",])
-localips=[ip for ip in gethostbyname_ex(gethostname())[2] if not ip.startswith("127.")][:1]
-
-s=socket(AF_INET, SOCK_DGRAM)
-s.bind(('', 1024))
-s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-
-def sighandler(signum, frame):
-    stop()
+def sighandler():
+    if s: stop()
     sys.exit(0)
-signal.signal(signal.SIGTERM, sighandler)
-
-use_preamp="--preamp" in sys.argv
-if use_preamp: print "preamp on"
-freq=7e6
-if "--freq" in sys.argv: freq=int(sys.argv[sys.argv.index("--freq")+1])
-print "center frequency:", freq
-
 
 def bcast():
     s.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
@@ -37,7 +17,7 @@ def bcast():
         except: continue
         ip=rx[1][0]
         payload=rx[0]
-        if ip in localips: print "local bcastmsg loopback, skip"
+        if ip in localips: sys.stderr.write("local bcastmsg loopback, skip\n")
         else:
             if ip==rxip and payload.startswith("\xef\xfe"): return True
     return False
@@ -52,30 +32,66 @@ def cmd(freq, preamp):
     s.sendto(d, (rxip, 1024))
 
 def procpkt(d):
-    print len(d)
+    if no_iq_output:
+        sys.stderr.write("pkt to decode: %d bytes\n"%len(d))
+        return
+    for i in range(0,len(d),8):
+        sys.stdout.write(d[i:i+6])
 
 def rxpkt():
     try: rxdata=s.recvfrom(2048)
     except: return
     d=rxdata[0]
-    print len(d)
+    #sys.stderr.write(len(d\n))
     if not d[0:2]=="\xef\xfe":
-        print "pkt header does not match"
+        sys.stderr.write("pkt header does not match\n")
         return
     if not ord(d[2])==1:
-        print "pkt signature does not match"
+        sys.stderr.write("pkt signature does not match\n")
         return
     if not ord(d[3])==6:
-        print "pkt ep does not match"
+        sys.stderr.write("pkt ep does not match\n")
         return
     seqnum=ord(d[7])+(ord(d[6])<<8)+(ord(d[5])<<16)+(ord(d[4])<<24)
     procpkt(d[8:512+8])
     procpkt(d[512+8:])
-    print "seqnum", seqnum
+    if no_iq_output: sys.stderr.write("seqnum: %d\n"%seqnum)
 
-if not bcast():
-    print "receiver not found"
-    sys.exit(1)
-print "receiver found"
-start()
-while True: rxpkt()
+def main():
+    global bcastip, s, localips, rxip, no_iq_output
+
+    s=None
+
+    try: rxip=sys.argv[1]
+    except:
+        sys.stderr.write(sys.argv[0]+" <hpsdr_metis_ip> [--freq <freq_in_hz>] [--preamp] [--no-iq-output]\n")
+        return 1
+
+    rxipparts=rxip.split(".")
+    bcastip=".".join(rxipparts[0:3]+["255",])
+    localips=[ip for ip in gethostbyname_ex(gethostname())[2] if not ip.startswith("127.")][:1]
+    no_iq_output = ("--no-iq-output" in sys.argv)
+
+    s=socket(AF_INET, SOCK_DGRAM)
+    s.bind(('', 1024))
+    s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+
+    signal.signal(signal.SIGTERM, sighandler)
+
+    if not bcast():
+        sys.stderr.write("receiver not found\n")
+        return 1
+    sys.stderr.write("receiver found\n")
+
+    use_preamp="--preamp" in sys.argv
+    if use_preamp: sys.stderr.write("preamp on\n")
+    freq=7e6
+    if "--freq" in sys.argv: freq=int(sys.argv[sys.argv.index("--freq")+1])
+    sys.stderr.write("center frequency: %d\n"%int(freq))
+
+    for anything in range(0,5): cmd(freq, use_preamp)
+    start()
+    while True: rxpkt()
+
+try: sys.exit(main())
+except (KeyboardInterrupt, SystemExit): sighandler()
