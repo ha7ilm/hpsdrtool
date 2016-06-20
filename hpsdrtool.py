@@ -35,7 +35,7 @@ def procpkt(d):
     if no_iq_output:
         sys.stderr.write("pkt to decode: %d bytes\n"%len(d))
         return
-    for i in range(0,len(d),8):
+    for i in range(8,len(d),8):
         sys.stdout.write(d[i:i+6])
 
 def rxpkt():
