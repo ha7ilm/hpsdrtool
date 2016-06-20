@@ -1,4 +1,5 @@
 #!/usr/bin/python2
+
 from socket import *
 import sys, time, signal, struct
 
@@ -25,10 +26,12 @@ def bcast():
 def start(): s.sendto("\xef\xfe\x04\x01"+("\x00"*60), (rxip, 1024))
 def stop(): s.sendto("\xef\xfe\x04\x00"+("\x00"*60), (rxip, 1024))
 
-def cmd(freq, preamp):
+def cmd(freq, preamp, rx):
     freqdata=struct.pack(">I",freq)
+    rxbyte=chr(4 if rx else 2)
     c3=0x18+(4 if preamp else 0)
-    d="\xef\xfe\x01\x02\x00\x00\x00\x09\x7f\x7f\x7f\x00\xda\x00"+chr(c3)+"\x80"+("\x00"*504)+"\x7f\x7f\x7f\x04"+freqdata+("\x00"*504)
+    #stock data from powersdr sniffing: 7f 7f 7f 00 5a 00 00 88; 7f 7f 7f 02 01 56 c8 01 (around 22 MHz)
+    d="\xef\xfe\x01\x02\x00\x00\x00\x09\x7f\x7f\x7f\x00\xda\x00"+chr(c3)+"\x80"+("\x00"*504)+"\x7f\x7f\x7f"+rxbyte+freqdata+("\x00"*504)
     s.sendto(d, (rxip, 1024))
 
 def procpkt(d):
@@ -89,7 +92,8 @@ def main():
     if "--freq" in sys.argv: freq=int(sys.argv[sys.argv.index("--freq")+1])
     sys.stderr.write("center frequency: %d\n"%int(freq))
 
-    for anything in range(0,5): cmd(freq, use_preamp)
+    cmd(freq, use_preamp, 0)
+    cmd(freq, use_preamp, 1)
     start()
     while True: rxpkt()
 
