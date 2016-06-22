@@ -1,5 +1,9 @@
 # hpsdrtool
 
+Setup:
+
+    sudo make install
+
 Usage:
 
     hpsdrtool <hpsdr_metis_ip> [--freq <freq_in_hz>] [--preamp] [--no-iq-output]
