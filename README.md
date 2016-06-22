@@ -1,6 +1,6 @@
 # hpsdrtool
 
-Setup (adds the command globally):
+Setup (makes the command globally available):
 
     sudo make install
 
