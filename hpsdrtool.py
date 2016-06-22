@@ -40,6 +40,7 @@ def procpkt(d):
         return
     for i in range(8,len(d),8):
         sys.stdout.write(d[i:i+6])
+        #if len(d[i:i+6])!=6: sys.stderr.write("pktlenerr: %d  "%len(d[i:i+6]))
 
 def rxpkt():
     try: rxdata=s.recvfrom(2048)
@@ -55,6 +56,10 @@ def rxpkt():
     if not ord(d[3])==6:
         sys.stderr.write("pkt ep does not match\n")
         return
+    if not len(d)==1024+8:
+        sys.stderr.write("pkt len does not match\n")
+        return
+
     seqnum=ord(d[7])+(ord(d[6])<<8)+(ord(d[5])<<16)+(ord(d[4])<<24)
     procpkt(d[8:512+8])
     procpkt(d[512+8:])
@@ -67,7 +72,7 @@ def main():
 
     try: rxip=sys.argv[1]
     except:
-        sys.stderr.write(sys.argv[0]+" <hpsdr_metis_ip> [--freq <freq_in_hz>] [--preamp] [--no-iq-output]\n")
+        sys.stderr.write("hpsdrtool <hpsdr_metis_ip> [--freq <freq_in_hz>] [--preamp] [--no-iq-output]\n")
         return 1
 
     rxipparts=rxip.split(".")

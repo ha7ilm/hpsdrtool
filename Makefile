@@ -1,3 +1,3 @@
 install:
-	cp hpsdrtool.py /usr/bin/hpsdrtool
-	chmod 755 /usr/bin/hpsdrtool
+	install -m 644 hpsdrtool.py /usr/bin
+	install -m 755 hpsdrtool /usr/bin
